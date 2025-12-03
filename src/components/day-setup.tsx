@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { useUser } from "@/firebase";
+import { useUser, useAuth } from "@/firebase";
 import { signInWithGoogle } from "@/firebase/auth";
 
 const icons: Record<DayMode, React.ElementType> = {
@@ -52,7 +52,7 @@ const TaskInput = ({
         toast({ title: "Task title is required.", variant: 'destructive' });
         return;
     }
-    addTask({ id: Date.now().toString(), title, duration, priority: type === 'must-do' ? 'must' : 'optional', status: 'pending' });
+    addTask({ title, duration, priority: type === 'must-do' ? 'must' : 'optional' });
     setTitle("");
   };
 
@@ -61,7 +61,7 @@ const TaskInput = ({
         toast({ title: "Event title is required.", variant: 'destructive' });
         return;
     }
-    addEvent({ id: Date.now().toString(), title, start: startTime, end: endTime });
+    addEvent({ title, start: startTime, end: endTime });
     setTitle("");
   };
 
@@ -140,6 +140,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
   } = useContext(AppContext);
   const { toast } = useToast();
   const { user } = useUser();
+  const auth = useAuth();
 
   const mustDoTasks = tasks.filter((t) => t.priority === "must");
   const optionalTasks = tasks.filter((t) => t.priority === "optional");
@@ -165,7 +166,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
         <div className="flex flex-col items-center justify-center min-h-svh p-4">
             <h1 className="text-2xl font-bold font-headline mb-2">Welcome to DayMode</h1>
             <p className="text-muted-foreground mb-6">Sign in to start planning your day.</p>
-            <Button onClick={signInWithGoogle} className="h-12 text-lg">
+            <Button onClick={() => auth && signInWithGoogle(auth)} className="h-12 text-lg">
                 <LogIn className="mr-2 h-5 w-5"/>
                 Sign in with Google
             </Button>

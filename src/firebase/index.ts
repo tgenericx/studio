@@ -1,61 +1,41 @@
-"use client";
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { firebaseConfig } from './config';
 
-import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
-import { firebaseConfig } from "./config";
+type FirebaseInstances = {
+  app: FirebaseApp;
+  auth: Auth;
+  firestore: Firestore;
+};
 
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let firestore: Firestore | null = null;
+let firebaseInstances: FirebaseInstances | null = null;
 
-function initialize() {
-    if (Object.keys(firebaseConfig).length > 0) {
-        if (getApps().length === 0) {
-            app = initializeApp(firebaseConfig);
-        } else {
-            app = getApp();
-        }
-        auth = getAuth(app);
-        firestore = getFirestore(app);
-    } else {
-        console.warn("Firebase config is empty. Please update src/firebase/config.ts with your project credentials.");
-    }
-}
+export const initializeFirebase = (): FirebaseInstances => {
+  if (firebaseInstances) {
+    return firebaseInstances;
+  }
 
-// Getter functions to be used by other modules
-export const getFirebaseApp = () => {
-    if (!app) {
-        initialize();
-    }
-    return app;
-}
-export const getFirebaseAuth = () => {
-    if (!auth) {
-        initialize();
-    }
-    return auth;
-}
-export const getFirebaseFirestore = () => {
-    if (!firestore) {
-        initialize();
-    }
-    return firestore;
-}
+  if (Object.keys(firebaseConfig).length === 0) {
+    throw new Error("Firebase config is empty. Please update src/firebase/config.ts");
+  }
 
-// For use in the provider
-const getInitializedInstances = () => {
-    if (!app) {
-        initialize();
-    }
-    return { app, auth, firestore };
-}
+  let app: FirebaseApp;
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
+  }
 
-const { app: initializedApp, auth: initializedAuth, firestore: initializedFirestore } = getInitializedInstances();
+  const auth = getAuth(app);
+  const firestore = getFirestore(app);
 
-export { initializedApp as app, initializedAuth as auth, initializedFirestore as firestore };
+  firebaseInstances = { app, auth, firestore };
+  return firebaseInstances;
+};
 
 export * from './provider';
+export * from './client-provider';
 export * from './auth/use-user';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';

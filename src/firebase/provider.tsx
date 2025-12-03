@@ -3,7 +3,6 @@ import React, { createContext, useContext, ReactNode } from "react";
 import { FirebaseApp } from "firebase/app";
 import { Auth } from "firebase/auth";
 import { Firestore } from "firebase/firestore";
-import { getFirebaseApp, getFirebaseAuth, getFirebaseFirestore } from "./index";
 
 interface FirebaseContextType {
   app: FirebaseApp | null;
@@ -17,31 +16,42 @@ const FirebaseContext = createContext<FirebaseContextType>({
   firestore: null,
 });
 
-export const useFirebase = () => useContext(FirebaseContext);
-export const useFirebaseApp = () => useContext(FirebaseContext).app;
-export const useAuth = () => {
+export const useFirebase = () => {
     const context = useContext(FirebaseContext);
     if (!context) {
-        throw new Error("useAuth must be used within a FirebaseProvider");
+        throw new Error("useFirebase must be used within a FirebaseProvider");
+    }
+    return context;
+};
+
+export const useFirebaseApp = () => {
+    const context = useFirebase();
+    return context.app;
+};
+
+export const useAuth = () => {
+    const context = useFirebase();
+    if (!context.auth) {
+        throw new Error("useAuth must be used within a FirebaseProvider with an auth instance");
     }
     return context.auth;
 };
 export const useFirestore = () => {
-    const context = useContext(FirebaseContext);
-    if (!context) {
-        throw new Error("useFirestore must be used within a FirebaseProvider");
+    const context = useFirebase();
+    if (!context.firestore) {
+        throw new Error("useFirestore must be used within a FirebaseProvider with a firestore instance");
     }
     return context.firestore;
 };
 
-export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Use the getter functions to ensure Firebase is initialized
-  const app = getFirebaseApp();
-  const auth = getFirebaseAuth();
-  const firestore = getFirebaseFirestore();
+interface FirebaseProviderProps {
+  children: ReactNode;
+  value: FirebaseContextType;
+}
 
+export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children, value }) => {
   return (
-    <FirebaseContext.Provider value={{ app, auth, firestore }}>
+    <FirebaseContext.Provider value={value}>
       {children}
     </FirebaseContext.Provider>
   );

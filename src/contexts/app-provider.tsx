@@ -2,8 +2,8 @@
 
 import { createContext, useState, ReactNode, useEffect } from "react";
 import type { DayMode, Task, FixedEvent, TimeBlock } from "@/lib/types";
-import { useUser, useFirestore, useCollection, useDoc } from "@/firebase";
-import { collection, doc, writeBatch, Timestamp, onSnapshot } from "firebase/firestore";
+import { useUser, useFirestore, useCollection } from "@/firebase";
+import { collection, doc, writeBatch, Timestamp, setDoc, addDoc, deleteDoc, getDocs, onSnapshot } from "firebase/firestore";
 import { format, startOfDay } from "date-fns";
 
 interface AppContextType {
@@ -12,7 +12,7 @@ interface AppContextType {
   kickstartTime: string;
   setKickstartTime: (time: string) => void;
   tasks: Task[];
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'status'>) => void;
   removeTask: (id: string) => void;
   events: FixedEvent[];
   addEvent: (event: Omit<FixedEvent, 'id'>) => void;
@@ -55,6 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const dateString = format(startOfDay(selectedDate), "yyyy-MM-dd");
 
+  // Memoize refs
   const dayDocRef = user && firestore ? doc(firestore, "users", user.uid, "days", dateString) : null;
   const tasksColRef = user && firestore ? collection(firestore, "users", user.uid, "days", dateString, "tasks") : null;
   const eventsColRef = user && firestore ? collection(firestore, "users", user.uid, "days", dateString, "events") : null;
@@ -69,31 +70,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           setDayModeState(data.dayMode || "Balanced");
           setKickstartTimeState(data.kickstartTime || "09:00");
         } else {
-           // Reset to default if no doc for this day
            setDayModeState("Balanced");
            setKickstartTimeState("09:00");
         }
       });
-      return unsub;
+      return () => unsub();
+    } else {
+        setDayModeState("Balanced");
+        setKickstartTimeState("09:00");
+        setTasks([]);
+        setEvents([]);
+        setScheduleState([]);
     }
   }, [dayDocRef]);
 
   const { data: tasksData } = useCollection(tasksColRef);
   useEffect(() => {
-    if (tasksData) {
-      setTasks(tasksData as Task[]);
-    } else {
-      setTasks([]);
-    }
+    setTasks(tasksData as Task[] || []);
   }, [tasksData]);
 
   const { data: eventsData } = useCollection(eventsColRef);
   useEffect(() => {
-    if (eventsData) {
-      setEvents(eventsData as FixedEvent[]);
-    } else {
-      setEvents([]);
-    }
+    setEvents(eventsData as FixedEvent[] || []);
   }, [eventsData]);
   
   const { data: scheduleData } = useCollection(scheduleColRef);
@@ -103,7 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ...block,
         start: block.start.toDate(),
         end: block.end.toDate(),
-      })) as TimeBlock[];
+      })).sort((a, b) => a.start.getTime() - b.start.getTime()) as TimeBlock[];
       setScheduleState(parsedSchedule);
     } else {
       setScheduleState([]);
@@ -114,53 +112,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const setDayMode = async (mode: DayMode) => {
     setDayModeState(mode);
     if (dayDocRef) {
-      await (await import('firebase/firestore')).setDoc(dayDocRef, { dayMode: mode }, { merge: true });
+      await setDoc(dayDocRef, { dayMode: mode }, { merge: true });
     }
   };
 
   const setKickstartTime = async (time: string) => {
     setKickstartTimeState(time);
     if (dayDocRef) {
-      await (await import('firebase/firestore')).setDoc(dayDocRef, { kickstartTime: time }, { merge: true });
+      await setDoc(dayDocRef, { kickstartTime: time }, { merge: true });
     }
   };
 
-  const addTask = async (task: Omit<Task, 'id'>) => {
+  const addTask = async (task: Omit<Task, 'id' | 'status'>) => {
     if (tasksColRef) {
-      await (await import('firebase/firestore')).addDoc(tasksColRef, task);
+      await addDoc(tasksColRef, { ...task, status: 'pending'});
     }
   };
 
   const removeTask = async (id: string) => {
     if (tasksColRef) {
-      await (await import('firebase/firestore')).deleteDoc(doc(tasksColRef, id));
+      await deleteDoc(doc(tasksColRef, id));
     }
   };
 
-  const addEvent = async (event: Omit<FixedEvent, 'id'>) => {
+  const addEvent = async (eventData: Omit<FixedEvent, 'id'>) => {
     if (eventsColRef) {
-      await (await import('firebase/firestore')).addDoc(eventsColRef, event);
+      await addDoc(eventsColRef, eventData);
     }
   };
   
   const removeEvent = async (id: string) => {
     if (eventsColRef) {
-      await (await import('firebase/firestore')).deleteDoc(doc(eventsColRef, id));
+      await deleteDoc(doc(eventsColRef, id));
     }
   };
 
   const setSchedule = async (newSchedule: TimeBlock[]) => {
     if (firestore && scheduleColRef) {
       const batch = writeBatch(firestore);
-      // Delete old schedule
-      const oldScheduleSnap = await (await import('firebase/firestore')).getDocs(scheduleColRef);
+      const oldScheduleSnap = await getDocs(scheduleColRef);
       oldScheduleSnap.forEach(doc => batch.delete(doc.ref));
 
-      // Add new schedule
       newSchedule.forEach(block => {
-        const docRef = doc(scheduleColRef);
+        // Firebase works with document IDs, but the block itself doesn't need to know its doc ID
+        // so we create a new ref for each block.
+        const docRef = doc(collection(firestore, scheduleColRef.path));
         const blockForStore = {
           ...block,
+          id: block.id, // Keep original ID for client-side logic
           start: Timestamp.fromDate(block.start),
           end: Timestamp.fromDate(block.end),
         }
@@ -168,17 +167,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
       await batch.commit();
     }
-    setScheduleState(newSchedule);
+    // The state will be updated by the onSnapshot listener, so no need to set it here.
   }
   
   const updateBlockStatus = async (id: string, status: 'pending' | 'completed') => {
       if(scheduleColRef) {
-        // This is not efficient, but it's simple for now.
-        // A better approach would be to find the document by block id.
-        const querySnapshot = await (await import('firebase/firestore')).getDocs(scheduleColRef);
+        const querySnapshot = await getDocs(scheduleColRef);
         querySnapshot.forEach(async (document) => {
-          const block = document.data();
-          if (block.id === id) {
+          if (document.data().id === id) {
             await (await import('firebase/firestore')).updateDoc(document.ref, { status });
           }
         });
