@@ -1,11 +1,15 @@
 "use client";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
-import { app } from "../index";
+import { getFirebaseApp } from "..";
 
 const provider = new GoogleAuthProvider();
 
 export const signInWithGoogle = async () => {
     try {
+        const app = getFirebaseApp();
+        if (!app) {
+            throw new Error("Firebase not initialized");
+        }
         const auth = getAuth(app);
         await signInWithPopup(auth, provider);
     } catch (error) {
@@ -15,6 +19,10 @@ export const signInWithGoogle = async () => {
 
 export const logout = async () => {
     try {
+        const app = getFirebaseApp();
+        if (!app) {
+            throw new Error("Firebase not initialized");
+        }
         const auth = getAuth(app);
         await signOut(auth);
     } catch (error) {
