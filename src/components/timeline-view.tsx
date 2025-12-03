@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import type { TimeBlock } from "@/lib/types";
-import { format, getHours, startOfDay } from "date-fns";
+import { format, getHours, startOfDay, addHours } from "date-fns";
 import TimeBlockCard from "./time-block-card";
 
 export default function TimelineView({ schedule: initialSchedule, onBack }: { schedule: TimeBlock[], onBack: () => void }) {
@@ -44,12 +44,6 @@ export default function TimelineView({ schedule: initialSchedule, onBack }: { sc
     }
     return hours;
   }, []);
-
-  const addHours = (date: Date, hours: number) => {
-    const newDate = new Date(date);
-    newDate.setHours(date.getHours() + hours);
-    return newDate;
-  }
 
   return (
     <div className="flex flex-col h-svh">
