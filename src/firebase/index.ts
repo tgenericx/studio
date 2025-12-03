@@ -23,24 +23,38 @@ function initialize() {
     }
 }
 
-// Initialize on first load
-initialize();
-
 // Getter functions to be used by other modules
 export const getFirebaseApp = () => {
-    if (!app) initialize();
+    if (!app) {
+        initialize();
+    }
     return app;
 }
 export const getFirebaseAuth = () => {
-    if (!auth) initialize();
+    if (!auth) {
+        initialize();
+    }
     return auth;
 }
 export const getFirebaseFirestore = () => {
-    if (!firestore) initialize();
+    if (!firestore) {
+        initialize();
+    }
     return firestore;
 }
 
-export { app, auth, firestore };
+// For use in the provider
+const getInitializedInstances = () => {
+    if (!app) {
+        initialize();
+    }
+    return { app, auth, firestore };
+}
+
+const { app: initializedApp, auth: initializedAuth, firestore: initializedFirestore } = getInitializedInstances();
+
+export { initializedApp as app, initializedAuth as auth, initializedFirestore as firestore };
+
 export * from './provider';
 export * from './auth/use-user';
 export * from './firestore/use-collection';

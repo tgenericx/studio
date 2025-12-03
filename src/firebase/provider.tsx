@@ -3,7 +3,7 @@ import React, { createContext, useContext, ReactNode } from "react";
 import { FirebaseApp } from "firebase/app";
 import { Auth } from "firebase/auth";
 import { Firestore } from "firebase/firestore";
-import { app, auth as firebaseAuth, firestore as firebaseFirestore } from "./index";
+import { getFirebaseApp, getFirebaseAuth, getFirebaseFirestore } from "./index";
 
 interface FirebaseContextType {
   app: FirebaseApp | null;
@@ -35,8 +35,13 @@ export const useFirestore = () => {
 };
 
 export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Use the getter functions to ensure Firebase is initialized
+  const app = getFirebaseApp();
+  const auth = getFirebaseAuth();
+  const firestore = getFirebaseFirestore();
+
   return (
-    <FirebaseContext.Provider value={{ app, auth: firebaseAuth, firestore: firebaseFirestore }}>
+    <FirebaseContext.Provider value={{ app, auth, firestore }}>
       {children}
     </FirebaseContext.Provider>
   );
