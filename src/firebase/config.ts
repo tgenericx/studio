@@ -1,13 +1,9 @@
-// This file is intentionally left blank.
-// You can populate it with your Firebase config object from the Firebase console.
-/*
+
 export const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "...",
-  appId: "1:..."
+  "projectId": "studio-7429944373-a86ae",
+  "appId": "1:26144315684:web:3e6ff1ba5a30bb982ffbb1",
+  "apiKey": "AIzaSyD-3ft00hwhg1VoPsKUrucKRoXH_a9jW6g",
+  "authDomain": "studio-7429944373-a86ae.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "26144315684"
 };
-*/
-export const firebaseConfig = {};
