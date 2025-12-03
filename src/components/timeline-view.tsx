@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useContext } from "react";
+import { useState, useMemo, useContext, useEffect } from "react";
 import { AppContext } from "@/contexts/app-provider";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -11,17 +11,14 @@ import { format, getHours, startOfDay, addHours } from "date-fns";
 import TimeBlockCard from "./time-block-card";
 
 export default function TimelineView({ schedule: initialSchedule, onBack }: { schedule: TimeBlock[], onBack: () => void }) {
-  const [schedule, setSchedule] = useState<TimeBlock[]>(initialSchedule);
-  const { selectedDate } = useContext(AppContext);
+  const { schedule, updateBlockStatus, selectedDate } = useContext(AppContext);
 
   const toggleTaskStatus = (id: string) => {
-    setSchedule(currentSchedule =>
-      currentSchedule.map(block =>
-        block.id === id && (block.type === 'task' || block.type === 'event')
-          ? { ...block, status: block.status === 'completed' ? 'pending' : 'completed' }
-          : block
-      )
-    );
+    const block = schedule.find(b => b.id === id);
+    if(block && (block.type === 'task' || block.type === 'event')) {
+      const newStatus = block.status === 'completed' ? 'pending' : 'completed';
+      updateBlockStatus(id, newStatus);
+    }
   };
   
   const stats = useMemo(() => {

@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export type DayMode = 'Deep Work' | 'Execution' | 'Balanced' | 'Chill';
 
 export type Duration = 15 | 30 | 45 | 60 | 90 | 120;
@@ -33,6 +35,16 @@ export interface TimeBlock {
   end: Date;
   status?: 'pending' | 'completed';
   priority?: 'must' | 'optional';
+}
+
+export interface FirestoreTimeBlock {
+    id: string;
+    type: 'task' | 'event' | 'break' | 'buffer';
+    title: string;
+    start: Timestamp;
+    end: Timestamp;
+    status?: 'pending' | 'completed';
+    priority?: 'must' | 'optional';
 }
 
 export interface ModeRules {

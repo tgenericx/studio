@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAY_MODES } from "@/lib/data";
-import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DayMode, Task, FixedEvent, Duration } from "@/lib/types";
+import type { DayMode, Task, FixedEvent, Duration, TimeBlock } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { useUser } from "@/firebase";
+import { signInWithGoogle } from "@/firebase/auth";
 
 const icons: Record<DayMode, React.ElementType> = {
   "Deep Work": BrainCircuit,
@@ -37,7 +39,7 @@ const TaskInput = ({
 }: {
   type: "must-do" | "optional" | "event";
 }) => {
-  const { tasks, setTasks, events, setEvents } = useContext(AppContext);
+  const { addTask, addEvent } = useContext(AppContext);
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState<Duration>(30);
   const [startTime, setStartTime] = useState("09:00");
@@ -50,14 +52,7 @@ const TaskInput = ({
         toast({ title: "Task title is required.", variant: 'destructive' });
         return;
     }
-    const priority = type === "must-do" ? "must" : "optional";
-    const mode = "Execution"; // Default mode for validation, should be based on context
-    const maxTasks = DAY_MODES[mode].taskLimits.total;
-    if (tasks.length >= maxTasks) {
-        toast({ title: `Cannot add more than ${maxTasks} tasks for this mode.`, variant: 'destructive' });
-        return;
-    }
-    setTasks([...tasks, { id: Date.now().toString(), title, duration, priority, status: 'pending' }]);
+    addTask({ id: Date.now().toString(), title, duration, priority: type === 'must-do' ? 'must' : 'optional', status: 'pending' });
     setTitle("");
   };
 
@@ -66,18 +61,9 @@ const TaskInput = ({
         toast({ title: "Event title is required.", variant: 'destructive' });
         return;
     }
-    setEvents([...events, { id: Date.now().toString(), title, start: startTime, end: endTime }]);
+    addEvent({ id: Date.now().toString(), title, start: startTime, end: endTime });
     setTitle("");
   };
-
-  const colorClass =
-    type === "must-do"
-      ? "border-l-4 border-l-red-500"
-      : type === "optional"
-      ? "border-l-4 border-l-blue-500"
-      : "border-l-4 border-l-purple-500";
-      
-  const accentColor = type === "must-do" ? "red" : type === "optional" ? "blue" : "purple";
 
   return (
     <div className="space-y-3">
@@ -145,21 +131,24 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
     kickstartTime,
     setKickstartTime,
     tasks,
-    setTasks,
+    removeTask,
     events,
-    setEvents,
+    removeEvent,
     selectedDate,
     setSelectedDate,
+    setSchedule,
   } = useContext(AppContext);
   const { toast } = useToast();
+  const { user } = useUser();
 
   const mustDoTasks = tasks.filter((t) => t.priority === "must");
   const optionalTasks = tasks.filter((t) => t.priority === "optional");
 
   const handleGenerate = () => {
     try {
-        const schedule = generateSchedule({ date: selectedDate, dayMode, kickstartTime, tasks, events });
-        onGenerateSchedule(schedule);
+        const newSchedule = generateSchedule({ date: selectedDate, dayMode, kickstartTime, tasks, events });
+        setSchedule(newSchedule);
+        onGenerateSchedule(newSchedule);
     } catch (error) {
         if (error instanceof Error) {
             toast({
@@ -170,14 +159,19 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
         }
     }
   };
-
-  const removeTask = (id: string) => {
-    setTasks(tasks.filter(t => t.id !== id));
-  };
   
-  const removeEvent = (id: string) => {
-    setEvents(events.filter(e => e.id !== id));
-  };
+  if (!user) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-svh p-4">
+            <h1 className="text-2xl font-bold font-headline mb-2">Welcome to DayMode</h1>
+            <p className="text-muted-foreground mb-6">Sign in to start planning your day.</p>
+            <Button onClick={signInWithGoogle} className="h-12 text-lg">
+                <LogIn className="mr-2 h-5 w-5"/>
+                Sign in with Google
+            </Button>
+        </div>
+    )
+  }
 
 
   return (
