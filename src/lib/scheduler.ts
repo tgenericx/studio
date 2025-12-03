@@ -28,19 +28,54 @@ export function generateSchedule(setup: DaySetup): TimeBlock[] {
     throw new Error(`Too many total tasks. Max is ${modeRules.taskLimits.total} for ${dayMode} mode.`);
   }
 
-  // 1. Place fixed events with buffers
+  // 1. Place fixed events. They are immovable.
   let schedule: TimeBlock[] = events.map(event => {
     const start = parseTime(event.start, today);
     const end = parseTime(event.end, today);
     return {
       id: event.id,
       title: event.title,
-      start: add(start, { minutes: -modeRules.buffers.prep }),
-      end: add(end, { minutes: modeRules.buffers.transition }),
+      start: start,
+      end: end,
       type: 'event',
       status: 'pending',
     };
   }).sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  // Create blocks for prep and transition buffers around fixed events
+  const eventBuffers: TimeBlock[] = [];
+  events.forEach(event => {
+    const start = parseTime(event.start, today);
+    const end = parseTime(event.end, today);
+    
+    if (modeRules.buffers.prep > 0) {
+      eventBuffers.push({
+        id: `prep-${event.id}`,
+        title: 'Buffer',
+        start: add(start, { minutes: -modeRules.buffers.prep }),
+        end: start,
+        type: 'buffer',
+      });
+    }
+    if (modeRules.buffers.transition > 0) {
+      eventBuffers.push({
+        id: `transition-${event.id}`,
+        title: 'Buffer',
+        start: end,
+        end: add(end, { minutes: modeRules.buffers.transition }),
+        type: 'buffer',
+      });
+    }
+  });
+
+  // Merge event buffers into the main schedule, avoiding overlaps.
+  eventBuffers.forEach(buffer => {
+      if (!schedule.some(existingBlock => overlaps(buffer, existingBlock))) {
+          schedule.push(buffer);
+      }
+  });
+  schedule.sort((a, b) => a.start.getTime() - b.start.getTime());
+
 
   // 2. Sort tasks: must-dos first
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -79,51 +114,68 @@ export function generateSchedule(setup: DaySetup): TimeBlock[] {
   }
 
   // 4. Insert breaks
-  const finalSchedule: TimeBlock[] = [];
-  let timeOffset = 0; // minutes
-  let workSessionDuration = 0;
+  const workBlocks = schedule.filter(b => b.type === 'task');
+  const breakBlocks: TimeBlock[] = [];
 
-  for (const block of schedule) {
-    const isWorkBlock = block.type === 'task' || block.type === 'event';
-    const blockDuration = differenceInMinutes(block.end, block.start);
+  if (workBlocks.length > 0) {
+      let workSessionStart = workBlocks[0].start;
 
-    if (isWorkBlock) {
-      if (workSessionDuration > 0 && (workSessionDuration + blockDuration) > modeRules.breakInterval) {
-        const lastBlockEnd = finalSchedule.length > 0 ? finalSchedule[finalSchedule.length-1].end : parseTime(kickstartTime, today);
-        const breakStart = add(lastBlockEnd, {minutes: timeOffset});
+      for (let i = 0; i < workBlocks.length; i++) {
+          const currentWorkBlock = workBlocks[i];
+          const nextWorkBlock = workBlocks[i + 1];
 
-        finalSchedule.push({
-          id: `break-${breakStart.getTime()}`,
-          title: 'Break',
-          start: breakStart,
-          end: add(breakStart, { minutes: modeRules.breakDuration }),
-          type: 'break',
-        });
-        timeOffset += modeRules.breakDuration;
-        workSessionDuration = 0;
+          const currentSessionDuration = differenceInMinutes(currentWorkBlock.end, workSessionStart);
+          
+          if (currentSessionDuration >= modeRules.breakInterval) {
+              const breakStart = currentWorkBlock.end;
+              const breakEnd = add(breakStart, { minutes: modeRules.breakDuration });
+
+              const potentialBreak = { start: breakStart, end: breakEnd };
+              
+              const overlapsWithAnything = schedule.some(b => overlaps(potentialBreak, b));
+
+              if (!overlapsWithAnything) {
+                  breakBlocks.push({
+                      id: `break-${breakStart.getTime()}`,
+                      title: 'Break',
+                      start: breakStart,
+                      end: breakEnd,
+                      type: 'break',
+                  });
+                  workSessionStart = breakEnd;
+
+                   if (nextWorkBlock) {
+                      const gapToNext = differenceInMinutes(nextWorkBlock.start, breakEnd);
+                      if (gapToNext > 0) {
+                        workSessionStart = nextWorkBlock.start;
+                      }
+                   }
+              } else {
+                  workSessionStart = nextWorkBlock ? nextWorkBlock.start : currentWorkBlock.end;
+              }
+          }
+
+          if (nextWorkBlock) {
+            const gap = differenceInMinutes(nextWorkBlock.start, currentWorkBlock.end);
+            if(gap > 5) { // If there's a significant gap, reset the session
+                workSessionStart = nextWorkBlock.start;
+            }
+          }
       }
-    } else {
-      workSessionDuration = 0;
-    }
-    
-    const shiftedStart = add(block.start, { minutes: timeOffset });
-    const shiftedEnd = add(block.end, { minutes: timeOffset });
-    finalSchedule.push({ ...block, start: shiftedStart, end: shiftedEnd });
-    
-    if (isWorkBlock) {
-      workSessionDuration += blockDuration;
-    }
   }
+
+  schedule.push(...breakBlocks);
+  schedule.sort((a, b) => a.start.getTime() - b.start.getTime());
   
   // 5. Fill gaps with buffers
-  const scheduleWithBuffers: TimeBlock[] = [];
+  const finalSchedule: TimeBlock[] = [];
   let lastEnd = parseTime(kickstartTime, today);
 
-  finalSchedule.forEach(block => {
+  schedule.forEach(block => {
     if (isAfter(block.start, lastEnd)) {
         const gap = differenceInMinutes(block.start, lastEnd);
         if (gap > 0) {
-            scheduleWithBuffers.push({
+            finalSchedule.push({
                 id: `buffer-${lastEnd.getTime()}`,
                 title: 'Buffer',
                 start: lastEnd,
@@ -132,10 +184,10 @@ export function generateSchedule(setup: DaySetup): TimeBlock[] {
             });
         }
     }
-    scheduleWithBuffers.push(block);
+    finalSchedule.push(block);
     lastEnd = block.end;
   });
 
 
-  return scheduleWithBuffers;
+  return finalSchedule;
 }
