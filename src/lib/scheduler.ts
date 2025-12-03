@@ -14,9 +14,9 @@ function overlaps(blockA: { start: Date; end: Date }, blockB: { start: Date; end
 }
 
 export function generateSchedule(setup: DaySetup): TimeBlock[] {
-  const { dayMode, kickstartTime, tasks, events } = setup;
+  const { dayMode, kickstartTime, tasks, events, date } = setup;
   const modeRules = DAY_MODES[dayMode];
-  const today = new Date();
+  const today = new Date(date);
   today.setHours(0, 0, 0, 0);
 
   // Validate task limits

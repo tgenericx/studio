@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAY_MODES } from "@/lib/data";
-import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2 } from "lucide-react";
+import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DayMode, Task, FixedEvent, Duration } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const icons: Record<DayMode, React.ElementType> = {
   "Deep Work": BrainCircuit,
@@ -145,6 +148,8 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
     setTasks,
     events,
     setEvents,
+    selectedDate,
+    setSelectedDate,
   } = useContext(AppContext);
   const { toast } = useToast();
 
@@ -153,7 +158,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
 
   const handleGenerate = () => {
     try {
-        const schedule = generateSchedule({ dayMode, kickstartTime, tasks, events });
+        const schedule = generateSchedule({ date: selectedDate, dayMode, kickstartTime, tasks, events });
         onGenerateSchedule(schedule);
     } catch (error) {
         if (error instanceof Error) {
@@ -181,6 +186,33 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
         <h1 className="text-2xl font-bold font-headline">Day Setup</h1>
         <p className="text-muted-foreground text-sm">Structure your day in 60 seconds.</p>
       </header>
+
+      {/* Date Selector */}
+      <section>
+        <label htmlFor="date" className="text-lg font-bold">Date</label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={cn(
+                "w-full justify-start text-left font-normal h-14 text-lg mt-2",
+                !selectedDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </section>
       
       {/* Mode Selector */}
       <section className="space-y-3">

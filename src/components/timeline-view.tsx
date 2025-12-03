@@ -12,7 +12,8 @@ import TimeBlockCard from "./time-block-card";
 
 export default function TimelineView({ schedule: initialSchedule, onBack }: { schedule: TimeBlock[], onBack: () => void }) {
   const [schedule, setSchedule] = useState<TimeBlock[]>(initialSchedule);
-  
+  const { selectedDate } = useContext(AppContext);
+
   const toggleTaskStatus = (id: string) => {
     setSchedule(currentSchedule =>
       currentSchedule.map(block =>
@@ -52,7 +53,10 @@ export default function TimelineView({ schedule: initialSchedule, onBack }: { sc
             <Button variant="ghost" size="icon" onClick={onBack} className="w-11 h-11">
                 <ArrowLeft />
             </Button>
-            <h1 className="text-xl font-bold font-headline">Your Day</h1>
+            <div>
+              <h1 className="text-xl font-bold font-headline text-center">Your Day</h1>
+              <p className="text-sm text-muted-foreground text-center">{format(selectedDate, "PPP")}</p>
+            </div>
             <div className="w-11"/>
         </div>
         <Progress value={stats.progress} className="w-full h-1.5" />

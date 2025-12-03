@@ -18,7 +18,7 @@ export interface FixedEvent {
 }
 
 export interface DaySetup {
-  date?: Date;
+  date: Date;
   dayMode: DayMode;
   kickstartTime: string; // "HH:mm"
   tasks: Task[];

@@ -12,6 +12,8 @@ interface AppContextType {
   setTasks: (tasks: Task[]) => void;
   events: FixedEvent[];
   setEvents: (events: FixedEvent[]) => void;
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
 }
 
 export const AppContext = createContext<AppContextType>({
@@ -23,6 +25,8 @@ export const AppContext = createContext<AppContextType>({
   setTasks: () => {},
   events: [],
   setEvents: () => {},
+  selectedDate: new Date(),
+  setSelectedDate: () => {},
 });
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -30,6 +34,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [kickstartTime, setKickstartTime] = useState("09:00");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<FixedEvent[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   return (
     <AppContext.Provider
@@ -42,6 +47,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setTasks,
         events,
         setEvents,
+        selectedDate,
+        setSelectedDate,
       }}
     >
       {children}
