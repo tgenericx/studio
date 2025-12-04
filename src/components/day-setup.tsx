@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAY_MODES } from "@/lib/data";
-import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, Sparkles } from "lucide-react";
+import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, Sparkles, Wand2, Loader2, ListPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DayMode, Task, FixedEvent, Duration, TimeBlock } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { breakdownTask, type BreakdownTaskOutput } from "@/ai/flows/breakdown-task-flow";
+
 
 const icons: Record<DayMode, React.ElementType> = {
   "Deep Work": BrainCircuit,
@@ -123,6 +125,80 @@ const TaskInput = ({
     </div>
   );
 };
+
+const AITaskBreakdown = () => {
+  const { addTask } = useContext(AppContext);
+  const { toast } = useToast();
+  const [goal, setGoal] = useState('');
+  const [suggestedTasks, setSuggestedTasks] = useState<BreakdownTaskOutput['tasks']>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleBreakdown = async () => {
+    if (!goal) {
+      toast({ title: 'Please enter a goal to break down.', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    setSuggestedTasks([]);
+    try {
+      const result = await breakdownTask({ goal });
+      setSuggestedTasks(result.tasks);
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to break down task.', description: 'The AI service may be temporarily unavailable.', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleAddTask = (task: {title: string; duration: string}) => {
+    const duration = parseInt(task.duration, 10) as Duration;
+    addTask({ title: task.title, duration, priority: 'optional' });
+    setSuggestedTasks(prev => prev.filter(t => t.title !== task.title));
+    toast({ title: `Task "${task.title}" added.` });
+  };
+
+
+  return (
+      <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4 space-y-4">
+              <h3 className="text-lg font-bold flex items-center"><Wand2 className="mr-2"/> AI Task Breakdown</h3>
+              <div className="space-y-2">
+                  <Input 
+                      placeholder="e.g., Launch new feature"
+                      value={goal}
+                      onChange={(e) => setGoal(e.target.value)}
+                      className="h-12 text-base"
+                  />
+                  <Button onClick={handleBreakdown} disabled={isLoading} className="w-full h-12 text-base">
+                    {isLoading ? <Loader2 className="animate-spin" /> : 'Break Down Goal'}
+                  </Button>
+              </div>
+
+              {suggestedTasks.length > 0 && (
+                  <div className="space-y-2">
+                      <h4 className="font-medium">Suggested Tasks:</h4>
+                      <ul className="space-y-2">
+                          {suggestedTasks.map((task, index) => (
+                              <li key={index} className="flex items-center justify-between p-2 rounded-md bg-background border">
+                                  <div>
+                                      <p>{task.title}</p>
+                                      <p className="text-sm text-muted-foreground">{task.duration} mins</p>
+                                  </div>
+                                  <Button size="icon" variant="ghost" onClick={() => handleAddTask(task)}>
+                                    <ListPlus className="text-primary"/>
+                                  </Button>
+                              </li>
+                          ))}
+                      </ul>
+                  </div>
+              )}
+          </CardContent>
+      </Card>
+  )
+
+}
+
 
 export default function DaySetup({ onGeneratePreview }: { onGeneratePreview: (schedule: TimeBlock[]) => void; }) {
   const context = useContext(AppContext);
@@ -239,6 +315,8 @@ export default function DaySetup({ onGeneratePreview }: { onGeneratePreview: (sc
           style={{ fontSize: '18px' }}
         />
       </section>
+
+      <AITaskBreakdown />
 
       {/* Must-Dos */}
       <section className="space-y-4">
