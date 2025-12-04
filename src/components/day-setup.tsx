@@ -7,15 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAY_MODES } from "@/lib/data";
-import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, Sparkles, Wand2, Loader2, ListPlus } from "lucide-react";
+import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, Wand2, Loader2, ListPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DayMode, Task, FixedEvent, Duration, TimeBlock } from "@/lib/types";
+import type { DayMode, Task, FixedEvent, Duration, TimeBlock, SubTask } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { breakdownTask, type BreakdownTaskOutput } from "@/ai/flows/breakdown-task-flow";
+import { breakdownTask } from "@/ai/flows/breakdown-task-flow";
 
 
 const icons: Record<DayMode, React.ElementType> = {
@@ -130,7 +130,7 @@ const AITaskBreakdown = () => {
   const { addTask } = useContext(AppContext);
   const { toast } = useToast();
   const [goal, setGoal] = useState('');
-  const [suggestedTasks, setSuggestedTasks] = useState<BreakdownTaskOutput['tasks']>([]);
+  const [suggestedTasks, setSuggestedTasks] = useState<SubTask[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleBreakdown = async () => {
@@ -151,7 +151,7 @@ const AITaskBreakdown = () => {
     }
   };
   
-  const handleAddTask = (task: {title: string; duration: string}) => {
+  const handleAddTask = (task: SubTask) => {
     const duration = parseInt(task.duration, 10) as Duration;
     addTask({ title: task.title, duration, priority: 'optional' });
     setSuggestedTasks(prev => prev.filter(t => t.title !== task.title));
@@ -383,7 +383,7 @@ export default function DaySetup({ onGeneratePreview }: { onGeneratePreview: (sc
       
       <div style={{ paddingBottom: `env(safe-area-inset-bottom)` }} className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border mx-auto max-w-[600px]">
         <Button onClick={handleGenerate} className="w-full h-16 text-lg font-bold shadow-lg">
-          <Sparkles className="mr-2" /> Generate Preview
+          Generate Preview
         </Button>
       </div>
     </div>
