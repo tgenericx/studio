@@ -2,16 +2,21 @@
 
 import { createContext, useState, ReactNode } from "react";
 import type { DayMode, Task, FixedEvent, TimeBlock } from "@/lib/types";
-import { format, startOfDay } from "date-fns";
+import type { View } from "@/app/page";
+import { addDays } from "date-fns";
 
 interface AppContextType {
+  view: View;
+  setView: (view: View) => void;
   dayMode: DayMode;
   setDayMode: (mode: DayMode) => void;
   kickstartTime: string;
   setKickstartTime: (time: string) => void;
   tasks: Task[];
+  setTasks: (tasks: Task[]) => void;
   addTask: (task: Omit<Task, 'id' | 'status'>) => void;
   removeTask: (id: string) => void;
+  updateTask: (id: string, updatedTask: Partial<Task>) => void;
   events: FixedEvent[];
   addEvent: (event: Omit<FixedEvent, 'id'>) => void;
   removeEvent: (id: string) => void;
@@ -20,27 +25,19 @@ interface AppContextType {
   schedule: TimeBlock[];
   setSchedule: (schedule: TimeBlock[]) => void;
   updateBlockStatus: (id: string, status: 'pending' | 'completed') => void;
+  resetForNextDay: () => void;
+  whatWorked: string;
+  setWhatWorked: (text: string) => void;
+  whatDidnt: string;
+  setWhatDidnt: (text: string) => void;
+  dayRating: number;
+  setDayRating: (rating: number) => void;
 }
 
-export const AppContext = createContext<AppContextType>({
-  dayMode: "Balanced",
-  setDayMode: () => {},
-  kickstartTime: "09:00",
-  setKickstartTime: () => {},
-  tasks: [],
-  addTask: () => {},
-  removeTask: () => {},
-  events: [],
-  addEvent: () => {},
-  removeEvent: () => {},
-  selectedDate: new Date(),
-  setSelectedDate: () => {},
-  schedule: [],
-  setSchedule: () => {},
-  updateBlockStatus: () => {},
-});
+export const AppContext = createContext<AppContextType | null>(null!);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const [view, setView] = useState<View>("setup");
   const [dayMode, setDayMode] = useState<DayMode>("Balanced");
   const [kickstartTime, setKickstartTime] = useState("09:00");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -48,12 +45,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [schedule, setSchedule] = useState<TimeBlock[]>([]);
 
+  // Review state
+  const [whatWorked, setWhatWorked] = useState("");
+  const [whatDidnt, setWhatDidnt] = useState("");
+  const [dayRating, setDayRating] = useState(0);
+
   const addTask = (task: Omit<Task, 'id' | 'status'>) => {
     setTasks(prev => [...prev, { ...task, id: `task-${Date.now()}`, status: 'pending' }]);
   };
 
   const removeTask = (id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
+  };
+  
+  const updateTask = (id: string, updatedTask: Partial<Task>) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updatedTask } : t));
   };
 
   const addEvent = (eventData: Omit<FixedEvent, 'id'>) => {
@@ -70,16 +76,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     ));
   };
 
+  const resetForNextDay = () => {
+    setTasks([]);
+    setEvents([]);
+    setSchedule([]);
+    setWhatWorked("");
+    setWhatDidnt("");
+    setDayRating(0);
+    setSelectedDate(prev => addDays(prev, 1));
+  };
+
+
   return (
     <AppContext.Provider
       value={{
+        view,
+        setView,
         dayMode,
         setDayMode,
         kickstartTime,
         setKickstartTime,
         tasks,
+        setTasks,
         addTask,
         removeTask,
+        updateTask,
         events,
         addEvent,
         removeEvent,
@@ -88,6 +109,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         schedule,
         setSchedule,
         updateBlockStatus,
+        resetForNextDay,
+        whatWorked,
+        setWhatWorked,
+        whatDidnt,
+        setWhatDidnt,
+        dayRating,
+        setDayRating,
       }}
     >
       {children}

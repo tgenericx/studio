@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAY_MODES } from "@/lib/data";
-import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DayMode, Task, FixedEvent, Duration, TimeBlock } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
@@ -37,7 +37,9 @@ const TaskInput = ({
 }: {
   type: "must-do" | "optional" | "event";
 }) => {
-  const { addTask, addEvent } = useContext(AppContext);
+  const context = useContext(AppContext);
+  if (!context) throw new Error("AppContext not found");
+  const { addTask, addEvent } = context;
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState<Duration>(30);
   const [startTime, setStartTime] = useState("09:00");
@@ -122,7 +124,10 @@ const TaskInput = ({
   );
 };
 
-export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (schedule: TimeBlock[]) => void; }) {
+export default function DaySetup({ onGeneratePreview }: { onGeneratePreview: (schedule: TimeBlock[]) => void; }) {
+  const context = useContext(AppContext);
+  if (!context) throw new Error("AppContext not found");
+
   const {
     dayMode,
     setDayMode,
@@ -134,8 +139,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
     removeEvent,
     selectedDate,
     setSelectedDate,
-    setSchedule,
-  } = useContext(AppContext);
+  } = context;
   const { toast } = useToast();
 
   const mustDoTasks = tasks.filter((t) => t.priority === "must");
@@ -144,8 +148,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
   const handleGenerate = () => {
     try {
         const newSchedule = generateSchedule({ date: selectedDate, dayMode, kickstartTime, tasks, events });
-        setSchedule(newSchedule);
-        onGenerateSchedule(newSchedule);
+        onGeneratePreview(newSchedule);
     } catch (error) {
         if (error instanceof Error) {
             toast({
@@ -256,7 +259,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
                 </CardContent>
             </Card>
         ))}
-        <TaskInput type="must-do" />
+        {mustDoTasks.length < DAY_MODES[dayMode].taskLimits.must && <TaskInput type="must-do" />}
       </section>
 
       {/* Optional Tasks */}
@@ -278,7 +281,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
                 </CardContent>
             </Card>
         ))}
-        <TaskInput type="optional" />
+        {tasks.length < DAY_MODES[dayMode].taskLimits.total && <TaskInput type="optional" />}
       </section>
 
       {/* Fixed Events */}
@@ -302,7 +305,7 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
       
       <div style={{ paddingBottom: `env(safe-area-inset-bottom)` }} className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border mx-auto max-w-[600px]">
         <Button onClick={handleGenerate} className="w-full h-16 text-lg font-bold shadow-lg">
-          Generate Schedule
+          <Sparkles className="mr-2" /> Generate Preview
         </Button>
       </div>
     </div>

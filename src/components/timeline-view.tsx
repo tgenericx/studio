@@ -7,11 +7,38 @@ import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import type { TimeBlock } from "@/lib/types";
-import { format, getHours, startOfDay, addHours } from "date-fns";
+import { format, getHours, startOfDay, addHours, set } from "date-fns";
 import TimeBlockCard from "./time-block-card";
 
-export default function TimelineView({ schedule: initialSchedule, onBack }: { schedule: TimeBlock[], onBack: () => void }) {
-  const { schedule, updateBlockStatus, selectedDate } = useContext(AppContext);
+export default function TimelineView({ onEndDay }: { onEndDay: () => void }) {
+  const context = useContext(AppContext);
+  if (!context) throw new Error("AppContext not found");
+  const { schedule, updateBlockStatus, selectedDate } = context;
+
+  useEffect(() => {
+    const interactiveBlocks = schedule.filter(b => b.type === 'task' || b.type === 'event');
+    const allCompleted = interactiveBlocks.length > 0 && interactiveBlocks.every(b => b.status === 'completed');
+    
+    if (allCompleted) {
+      onEndDay();
+    }
+
+    const now = new Date();
+    const reviewTime = set(selectedDate, { hours: 21, minutes: 0, seconds: 0 });
+    if (now >= reviewTime) {
+      onEndDay();
+    }
+
+    const intervalId = setInterval(() => {
+       const now = new Date();
+       if (now >= reviewTime) {
+         onEndDay();
+       }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+
+  }, [schedule, selectedDate, onEndDay]);
 
   const toggleTaskStatus = (id: string) => {
     const block = schedule.find(b => b.id === id);
@@ -47,9 +74,7 @@ export default function TimelineView({ schedule: initialSchedule, onBack }: { sc
     <div className="flex flex-col h-svh">
       <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 p-4 border-b space-y-3">
         <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={onBack} className="w-11 h-11">
-                <ArrowLeft />
-            </Button>
+            <div className="w-11 h-11" />
             <div>
               <h1 className="text-xl font-bold font-headline text-center">Your Day</h1>
               <p className="text-sm text-muted-foreground text-center">{format(selectedDate, "PPP")}</p>
