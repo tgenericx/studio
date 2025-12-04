@@ -3,8 +3,8 @@
 import { useMemo, useContext } from "react";
 import { AppContext } from "@/contexts/app-provider";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Edit2, Rocket, Trash2 } from "lucide-react";
-import { format, getHours, startOfDay, addHours, differenceInMinutes } from "date-fns";
+import { ArrowLeft, Rocket, Trash2 } from "lucide-react";
+import { format, addHours, startOfDay, differenceInMinutes } from "date-fns";
 import TimeBlockCard from "./time-block-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { type Duration, type Task } from "@/lib/types";
+import { type Duration } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
 
 const DURATION_CHIPS: { label: string; minutes: Duration }[] = [
@@ -41,8 +41,6 @@ export default function PreviewView({ onStartDay, onBack }: { onStartDay: () => 
     tasks,
     setTasks,
     events,
-    updateTask,
-    removeTask,
   } = context;
 
   const validation = useMemo(() => {
@@ -157,12 +155,12 @@ export default function PreviewView({ onStartDay, onBack }: { onStartDay: () => 
                 <CardTitle>Schedule Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="relative h-[calc(24*3rem)]"> {/* Reduced height for preview */}
+                <div className="relative h-[calc(24*6rem)]">
                     <div className="grid grid-cols-[48px_1fr] h-full">
                          {/* Hour Markers */}
                         <div className="relative">
                             {hourMarkers.map((hour, i) => (
-                                <div key={i} className="h-12 flex justify-center relative -top-2">
+                                <div key={i} className="h-24 flex justify-center relative -top-3">
                                     <span className="text-xs text-muted-foreground">{hour}</span>
                                 </div>
                             ))}
@@ -171,18 +169,7 @@ export default function PreviewView({ onStartDay, onBack }: { onStartDay: () => 
                         {/* Timeline Blocks */}
                         <div className="relative border-l">
                             {schedule.map(block => (
-                            <div key={block.id} style={{
-                                position: 'absolute',
-                                top: `${(block.start.getHours() + block.start.getMinutes()/60) * 3}rem`,
-                                height: `${differenceInMinutes(block.end, block.start)/60 * 3}rem`,
-                                width: 'calc(100% - 0.5rem)',
-                                right: '0'
-                            }}>
-                               <div className="bg-muted p-2 rounded-md h-full text-xs overflow-hidden">
-                                   <p className="font-bold truncate">{block.title}</p>
-                                   <p className="text-muted-foreground">{format(block.start, 'HH:mm')} - {format(block.end, 'HH:mm')}</p>
-                                </div>
-                            </div>
+                               <TimeBlockCard key={block.id} block={block} onToggleStatus={() => {}} />
                             ))}
                         </div>
                     </div>
