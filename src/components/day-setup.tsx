@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAY_MODES } from "@/lib/data";
-import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon, LogIn } from "lucide-react";
+import { BrainCircuit, Zap, Scale, Coffee, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DayMode, Task, FixedEvent, Duration, TimeBlock } from "@/lib/types";
 import { generateSchedule } from "@/lib/scheduler";
@@ -15,8 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { useUser, useAuth } from "@/firebase";
-import { signInWithGoogle } from "@/firebase/auth";
 
 const icons: Record<DayMode, React.ElementType> = {
   "Deep Work": BrainCircuit,
@@ -139,8 +137,6 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
     setSchedule,
   } = useContext(AppContext);
   const { toast } = useToast();
-  const { user } = useUser();
-  const auth = useAuth();
 
   const mustDoTasks = tasks.filter((t) => t.priority === "must");
   const optionalTasks = tasks.filter((t) => t.priority === "optional");
@@ -160,20 +156,6 @@ export default function DaySetup({ onGenerateSchedule }: { onGenerateSchedule: (
         }
     }
   };
-  
-  if (!user) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-svh p-4">
-            <h1 className="text-2xl font-bold font-headline mb-2">Welcome to DayMode</h1>
-            <p className="text-muted-foreground mb-6">Sign in to start planning your day.</p>
-            <Button onClick={() => auth && signInWithGoogle(auth)} className="h-12 text-lg">
-                <LogIn className="mr-2 h-5 w-5"/>
-                Sign in with Google
-            </Button>
-        </div>
-    )
-  }
-
 
   return (
     <div className="p-4 space-y-5 pb-24">
