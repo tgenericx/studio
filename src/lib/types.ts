@@ -80,3 +80,20 @@ export const BreakdownTaskOutputSchema = z.object({
   tasks: z.array(SubTaskSchema).describe('An array of sub-tasks generated from the main goal.'),
 });
 export type BreakdownTaskOutput = z.infer<typeof BreakdownTaskOutputSchema>;
+
+
+// AI Mode Suggestion Types
+export const SuggestModeInputSchema = z.object({
+    completionRate: z.number().describe('The percentage of tasks completed today (0-100).'),
+    dayMode: z.string().describe('The mode used for today\'s schedule.'),
+    dayRating: z.number().describe('The user\'s rating of the day out of 5.'),
+    whatWorked: z.string().describe('The user\'s notes on what went well.'),
+    whatDidnt: z.string().describe('The user\'s notes on what did not go well.'),
+});
+export type SuggestModeInput = z.infer<typeof SuggestModeInputSchema>;
+
+export const SuggestModeOutputSchema = z.object({
+    suggestedMode: z.enum(['Deep Work', 'Execution', 'Balanced', 'Chill']).describe('The suggested mode for tomorrow.'),
+    reason: z.string().describe('A short, encouraging reason for the suggestion, based on the user\'s input.'),
+});
+export type SuggestModeOutput = z.infer<typeof SuggestModeOutputSchema>;

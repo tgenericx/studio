@@ -1,33 +1,14 @@
 "use client";
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppContext } from '@/contexts/app-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Star, Repeat } from 'lucide-react';
+import { Star, Repeat, Loader2, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DAY_MODES } from '@/lib/data';
-import type { DayMode } from '@/lib/types';
-
-
-function suggestTomorrowMode(today: { completion_rate: number; mode: DayMode; day_rating: number }): DayMode {
-  const { completion_rate, mode, day_rating } = today;
-
-  // High completion + high rating = go deeper
-  if (completion_rate > 80 && day_rating >= 4) {
-    if (mode === 'Balanced') return 'Deep Work';
-    if (mode === 'Execution') return 'Balanced';
-  }
-
-  // Low completion = ease up
-  if (completion_rate < 50) {
-    if (mode === 'Deep Work') return 'Balanced';
-    if (mode === 'Balanced') return 'Chill';
-  }
-
-  // Medium performance = keep same mode
-  return mode;
-}
+import type { SuggestModeOutput } from '@/lib/types';
+import { suggestMode } from '@/ai/flows/suggest-mode-flow';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ReviewView({ onPlanNextDay }: { onPlanNextDay: () => void }) {
   const context = useContext(AppContext);
@@ -45,7 +26,12 @@ export default function ReviewView({ onPlanNextDay }: { onPlanNextDay: () => voi
     setDayMode,
     resetForNextDay
   } = context;
+
+  const { toast } = useToast();
   
+  const [suggestion, setSuggestion] = useState<SuggestModeOutput | null>(null);
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
+
   const stats = useMemo(() => {
     const tasks = schedule.filter(b => b.type === 'task' || b.type === 'event');
     const done = tasks.filter(b => b.status === 'completed');
@@ -62,12 +48,26 @@ export default function ReviewView({ onPlanNextDay }: { onPlanNextDay: () => voi
 
   const canComplete = whatWorked.length > 0 && whatDidnt.length > 0 && dayRating > 0;
 
-  const suggestedMode = suggestTomorrowMode({ completion_rate: stats.completionRate, mode: dayMode, day_rating: dayRating });
-  const suggestionReason = useMemo(() => {
-    if (suggestedMode === 'Deep Work') return "You were on fire! Ready to go deeper?";
-    if (suggestedMode === 'Chill') return "It was a tough day. Let's ease up a bit tomorrow.";
-    return "You're in a good flow. Let's keep the momentum going.";
-  }, [suggestedMode]);
+  useEffect(() => {
+    if (canComplete && !suggestion && !isGeneratingSuggestion) {
+      setIsGeneratingSuggestion(true);
+      suggestMode({
+        completionRate: stats.completionRate,
+        dayMode: dayMode,
+        dayRating: dayRating,
+        whatWorked: whatWorked,
+        whatDidnt: whatDidnt,
+      }).then(result => {
+        setSuggestion(result);
+      }).catch(err => {
+        console.error(err);
+        toast({ title: 'Could not generate suggestion.', variant: 'destructive' });
+      }).finally(() => {
+        setIsGeneratingSuggestion(false);
+      });
+    }
+  }, [canComplete, stats.completionRate, dayMode, dayRating, whatWorked, whatDidnt, suggestion, isGeneratingSuggestion, toast]);
+
 
   const handleComplete = () => {
     resetForNextDay();
@@ -75,7 +75,9 @@ export default function ReviewView({ onPlanNextDay }: { onPlanNextDay: () => voi
   };
 
   const handleUseSuggestion = () => {
-    setDayMode(suggestedMode);
+    if (suggestion) {
+      setDayMode(suggestion.suggestedMode);
+    }
     handleComplete();
   }
 
@@ -145,23 +147,34 @@ export default function ReviewView({ onPlanNextDay }: { onPlanNextDay: () => voi
             </CardContent>
         </Card>
 
-        {canComplete && (
+        {(isGeneratingSuggestion || suggestion) && (
              <Card className="bg-primary/10 border-primary">
                 <CardHeader>
-                    <CardTitle className="text-lg">Tomorrow's Suggestion: {suggestedMode}</CardTitle>
+                    <CardTitle className="text-lg flex items-center">
+                      <Wand2 className="mr-2" />
+                      {isGeneratingSuggestion ? 'Analyzing your day...' : `Tomorrow's Suggestion: ${suggestion?.suggestedMode}`}
+                      </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <p className="text-muted-foreground">{suggestionReason}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        <Button onClick={handleUseSuggestion}>Use {suggestedMode} Mode</Button>
-                        <Button variant="outline" onClick={handleComplete}>Pick Manually</Button>
-                    </div>
+                    {isGeneratingSuggestion ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground">{suggestion?.reason}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <Button onClick={handleUseSuggestion}>Use {suggestion?.suggestedMode} Mode</Button>
+                            <Button variant="outline" onClick={handleComplete}>Pick Manually</Button>
+                        </div>
+                      </>
+                    )}
                 </CardContent>
             </Card>
         )}
 
         <div style={{ paddingBottom: `env(safe-area-inset-bottom)` }} className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border mx-auto max-w-[600px]">
-            <Button onClick={handleComplete} disabled={!canComplete} className="w-full h-16 text-lg font-bold shadow-lg">
+            <Button onClick={handleComplete} disabled={!canComplete || isGeneratingSuggestion} className="w-full h-16 text-lg font-bold shadow-lg">
                 <Repeat className="mr-2" /> Complete & Plan Tomorrow
             </Button>
         </div>
